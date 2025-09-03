@@ -30,6 +30,8 @@ local ESP_SETTINGS = {
     HealthOutlineColor = Color3.new(0, 0, 0),
     HealthHighColor = Color3.new(0, 1, 0),
     HealthLowColor = Color3.new(1, 0, 0),
+    HeadColor = Color3.new(1, 1, 1),
+    HeadOutlineColor = Color3.new(0, 0, 0),
     CharSize = Vector2.new(4, 6),
     Teamcheck = false,
     WallCheck = false,
@@ -41,6 +43,7 @@ local ESP_SETTINGS = {
     ShowDistance = false,
     ShowSkeletons = false,
     ShowTracer = false,
+    ShowHead = false,
     TracerColor = Color3.new(1, 1, 1), 
     TracerThickness = 2,
     SkeletonsColor = Color3.new(1, 1, 1),
@@ -90,6 +93,16 @@ local function createEsp(player)
             Size = 12,
             Outline = true,
             Center = true
+        }),
+        head = create("Circle", {
+            Color = ESP_SETTINGS.HeadColor,
+            Thickness = 1,
+            Filled = false
+        }),
+        headOutline = create("Circle", {
+            Color = ESP_SETTINGS.HeadOutlineColor,
+            Thickness = 1,
+            Filled = false
         }),
         boxLines = {},
         skeletonlines = {}
@@ -148,7 +161,28 @@ local function cleanupSkeletonLines(esp)
     end
 end
 
+local function cleanupAllEsp()
+    for player, esp in pairs(cache) do
+        esp.box.Visible = false
+        esp.boxOutline.Visible = false
+        esp.name.Visible = false
+        esp.healthOutline.Visible = false
+        esp.health.Visible = false
+        esp.distance.Visible = false
+        esp.tracer.Visible = false
+        esp.head.Visible = false
+        esp.headOutline.Visible = false
+        cleanupBoxLines(esp)
+        cleanupSkeletonLines(esp)
+    end
+end
+
 local function updateEsp()
+    if not ESP_SETTINGS.Enabled then
+        cleanupAllEsp()
+        return
+    end
+    
     for player, esp in pairs(cache) do
         local character, team = player.Character, player.Team
         if character and (not ESP_SETTINGS.Teamcheck or (team and team ~= localPlayer.Team)) then
@@ -156,13 +190,14 @@ local function updateEsp()
             local head = character:FindFirstChild("Head")
             local humanoid = character:FindFirstChild("Humanoid")
             local isBehindWall = ESP_SETTINGS.WallCheck and isPlayerBehindWall(player)
-            local shouldShow = not isBehindWall and ESP_SETTINGS.Enabled
+            local shouldShow = not isBehindWall
             
             if rootPart and head and humanoid and shouldShow then
                 local position, onScreen = camera:WorldToViewportPoint(rootPart.Position)
                 
                 if onScreen then
                     local hrp2D = camera:WorldToViewportPoint(rootPart.Position)
+                    local head2D = camera:WorldToViewportPoint(head.Position)
                     local charSize = (camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0)).Y - camera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 2.6, 0)).Y) / 2
                     local boxSize = Vector2.new(math.floor(charSize * 1.8), math.floor(charSize * 1.9))
                     local boxPosition = Vector2.new(math.floor(hrp2D.X - charSize * 1.8 / 2), math.floor(hrp2D.Y - charSize * 1.6 / 2))
@@ -312,6 +347,25 @@ local function updateEsp()
                         esp.health.Visible = false
                     end
 
+                    -- Head ESP (Circle)
+                    if ESP_SETTINGS.ShowHead and head2D.Z > 0 then
+                        local headRadius = (camera:WorldToViewportPoint(head.Position + Vector3.new(0, head.Size.Y/2, 0)).Y - 
+                                          camera:WorldToViewportPoint(head.Position - Vector3.new(0, head.Size.Y/2, 0)).Y) / 2
+                        
+                        esp.head.Visible = true
+                        esp.headOutline.Visible = true
+                        esp.head.Position = Vector2.new(head2D.X, head2D.Y)
+                        esp.head.Radius = headRadius
+                        esp.head.Color = ESP_SETTINGS.HeadColor
+                        
+                        esp.headOutline.Position = Vector2.new(head2D.X, head2D.Y)
+                        esp.headOutline.Radius = headRadius + 1  -- Slightly larger for outline effect
+                        esp.headOutline.Color = ESP_SETTINGS.HeadOutlineColor
+                    else
+                        esp.head.Visible = false
+                        esp.headOutline.Visible = false
+                    end
+
                     -- Distance ESP
                     if ESP_SETTINGS.ShowDistance then
                         local distance = (camera.CFrame.p - rootPart.Position).Magnitude
@@ -395,6 +449,8 @@ local function updateEsp()
                     esp.health.Visible = false
                     esp.distance.Visible = false
                     esp.tracer.Visible = false
+                    esp.head.Visible = false
+                    esp.headOutline.Visible = false
                     cleanupBoxLines(esp)
                     cleanupSkeletonLines(esp)
                 end
@@ -407,6 +463,8 @@ local function updateEsp()
                 esp.health.Visible = false
                 esp.distance.Visible = false
                 esp.tracer.Visible = false
+                esp.head.Visible = false
+                esp.headOutline.Visible = false
                 cleanupBoxLines(esp)
                 cleanupSkeletonLines(esp)
             end
@@ -419,6 +477,8 @@ local function updateEsp()
             esp.health.Visible = false
             esp.distance.Visible = false
             esp.tracer.Visible = false
+            esp.head.Visible = false
+            esp.headOutline.Visible = false
             cleanupBoxLines(esp)
             cleanupSkeletonLines(esp)
         end
